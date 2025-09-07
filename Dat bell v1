@@ -1,0 +1,389 @@
+-- Script Lua cho Blox Fruits (GUI tùy chỉnh tên và hình ảnh, tương thích Delta X VNG)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+-- Tạo GUI kiểu RedZ Hub
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local LogoImage = Instance.new("ImageLabel") -- Thêm ImageLabel cho logo
+local TitleLabel = Instance.new("TextLabel")
+local StatusLabel = Instance.new("TextLabel")
+local TabFrame = Instance.new("Frame")
+local TabListLayout = Instance.new("UIListLayout")
+
+ScreenGui.Parent = LocalPlayer.PlayerGui
+ScreenGui.Name = "MyHubGUI" -- Đổi tên ScreenGui
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0, 400, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Nền tối kiểu RedZ Hub
+MainFrame.Visible = false
+UICorner.Parent = MainFrame
+UICorner.CornerRadius = UDim.new(0, 10)
+
+-- Thêm logo
+LogoImage.Parent = MainFrame
+LogoImage.Size = UDim2.new(0, 80, 0, 80)
+LogoImage.Position = UDim2.new(0.5, -40, 0, 10)
+LogoImage.BackgroundTransparency = 1
+LogoImage.Image = "rbxassetid://YOUR_IMAGE_ID" -- Thay YOUR_IMAGE_ID bằng Asset ID của bạn
+LogoImage.ScaleType = Enum.ScaleType.Fit
+
+TitleLabel.Parent = MainFrame
+TitleLabel.Size = UDim2.new(0, 380, 0, 40)
+TitleLabel.Position = UDim2.new(0.5, -190, 0, 100) -- Dịch xuống để nhường chỗ cho logo
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "MyHub - Blox Fruits" -- Đổi tên thành MyHub hoặc tên bạn muốn
+TitleLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+TitleLabel.TextSize = 20
+TitleLabel.Font = Enum.Font.SourceSansBold
+
+StatusLabel.Parent = MainFrame
+StatusLabel.Size = UDim2.new(0, 380, 0, 30)
+StatusLabel.Position = UDim2.new(0.5, -190, 0, 140) -- Dịch xuống
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Trạng thái: Sẵn sàng"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusLabel.TextSize = 14
+
+TabFrame.Parent = MainFrame
+TabFrame.Size = UDim2.new(0, 380, 0, 340)
+TabFrame.Position = UDim2.new(0.5, -190, 0, 180) -- Dịch xuống
+TabFrame.BackgroundTransparency = 1
+TabListLayout.Parent = TabFrame
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Padding = UDim.new(0, 10)
+
+-- Hàm tạo nút
+local function createButton(name, parent, text, callback)
+    local button = Instance.new("TextButton")
+    local corner = Instance.new("UICorner")
+    button.Parent = parent
+    button.Size = UDim2.new(0, 160, 0, 40)
+    button.BackgroundColor3 = Color3.fromRGB(0, 128, 255)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.SourceSans
+    corner.Parent = button
+    corner.CornerRadius = UDim.new(0, 8)
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+-- Hàm tạo tab
+local function createTab(name)
+    local tab = Instance.new("Frame")
+    local tabTitle = Instance.new("TextLabel")
+    local tabContent = Instance.new("Frame")
+    local listLayout = Instance.new("UIListLayout")
+    tab.Parent = TabFrame
+    tab.Size = UDim2.new(0, 380, 0, 320)
+    tab.BackgroundTransparency = 1
+    tabTitle.Parent = tab
+    tabTitle.Size = UDim2.new(0, 380, 0, 30)
+    tabTitle.BackgroundTransparency = 1
+    tabTitle.Text = name
+    tabTitle.TextColor3 = Color3.fromRGB(0, 255, 255)
+    tabTitle.TextSize = 18
+    tabContent.Parent = tab
+    tabContent.Size = UDim2.new(0, 380, 0, 280)
+    tabContent.Position = UDim2.new(0, 0, 0, 40)
+    tabContent.BackgroundTransparency = 1
+    listLayout.Parent = tabContent
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 10)
+    return tabContent
+end
+
+-- Biến trạng thái
+local toggles = {
+    autoFarm = false,
+    autoQuest = false,
+    autoSkill = false,
+    killAura = false,
+    autoChest = false,
+    espEnabled = false,
+    autoFruit = false,
+    autoEvent = false,
+    autoStats = false,
+    autoAwaken = false,
+    kabuchaHack = false
+}
+
+-- Danh sách tọa độ teleport
+local teleportLocations = {
+    ["Marine Starter"] = CFrame.new(-2600, 7, 5400),
+    ["Pirate Starter"] = CFrame.new(1000, 7, 1200),
+    ["Mirage Island"] = CFrame.new(5000, 100, 5000),
+    ["Tiki Outpost"] = CFrame.new(-16500, 10, -1000)
+}
+
+-- Tab Farm
+local farmTab = createTab("Farm")
+createButton("AutoFarm", farmTab, "Bật Auto Farm", function()
+    toggles.autoFarm = not toggles.autoFarm
+    StatusLabel.Text = toggles.autoFarm and "Auto Farm: Bật" or "Auto Farm: Tắt"
+    if toggles.autoFarm then
+        spawn(function()
+            while toggles.autoFarm do
+                for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 5, -5)
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(0, 0))
+                        wait(math.random(0.3, 0.7))
+                    end
+                end
+                wait(0.1)
+            end
+        end)
+    end
+end)
+
+createButton("AutoQuest", farmTab, "Bật Auto Quest", function()
+    toggles.autoQuest = not toggles.autoQuest
+    StatusLabel.Text = toggles.autoQuest and "Auto Quest: Bật" or "Auto Quest: Tắt"
+    if toggles.autoQuest then
+        spawn(function()
+            while toggles.autoQuest do
+                local questNPC = Workspace.NPCs:FindFirstChild("QuestGiver")
+                if questNPC then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = questNPC.HumanoidRootPart.CFrame
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questNPC.Name, 1)
+                    wait(2)
+                end
+                wait(1)
+            end
+        end)
+    end
+end)
+
+createButton("AutoChest", farmTab, "Bật Auto Chest", function()
+    toggles.autoChest = not toggles.autoChest
+    StatusLabel.Text = toggles.autoChest and "Auto Chest: Bật" or "Auto Chest: Tắt"
+    if toggles.autoChest then
+        spawn(function()
+            while toggles.autoChest do
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if v.Name:find("Chest") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
+                        wait(0.5)
+                    end
+                end
+                wait(0.3)
+            end
+        end)
+    end
+end)
+
+-- Tab Combat
+local combatTab = createTab("Combat")
+createButton("AutoSkill", combatTab, "Bật Auto Skill", function()
+    toggles.autoSkill = not toggles.autoSkill
+    StatusLabel.Text = toggles.autoSkill and "Auto Skill: Bật" or "Auto Skill: Tắt"
+    if toggles.autoSkill then
+        spawn(function()
+            while toggles.autoSkill do
+                local skills = {"Z", "X", "C", "V"}
+                for _, skill in ipairs(skills) do
+                    game:GetService("VirtualInputManager"):SendKeyEvent(true, skill, false, game)
+                    wait(0.5)
+                    game:GetService("VirtualInputManager"):SendKeyEvent(false, skill, false, game)
+                end
+                wait(2)
+            end
+        end)
+    end
+end)
+
+createButton("KillAura", combatTab, "Bật Kill Aura", function()
+    toggles.killAura = not toggles.killAura
+    StatusLabel.Text = toggles.killAura and "Kill Aura: Bật" or "Kill Aura: Tắt"
+    if toggles.killAura then
+        spawn(function()
+            while toggles.killAura do
+                for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        local distance = (v.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                        if distance < 15 then
+                            VirtualUser:CaptureController()
+                            VirtualUser:ClickButton1(Vector2.new(0, 0))
+                        end
+                    end
+                end
+                wait(0.2)
+            end
+        end)
+    end
+end)
+
+createButton("KabuchaHack", combatTab, "Bật Kabucha Hack", function()
+    toggles.kabuchaHack = not toggles.kabuchaHack
+    StatusLabel.Text = toggles.kabuchaHack and "Kabucha Hack: Bật" or "Kabucha Hack: Tắt"
+    if toggles.kabuchaHack then
+        spawn(function()
+            while toggles.kabuchaHack do
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Kabucha")
+                if tool then
+                    for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 10, -10)
+                            VirtualUser:CaptureController()
+                            VirtualUser:ClickButton1(Vector2.new(0, 0))
+                            v.Humanoid.Health = 0
+                            wait(0.05)
+                        end
+                    end
+                end
+                wait(0.05)
+            end
+        end)
+    end
+end)
+
+-- Tab Visual
+local visualTab = createTab("Visual")
+createButton("ESP", visualTab, "Bật ESP", function()
+    toggles.espEnabled = not toggles.espEnabled
+    StatusLabel.Text = toggles.espEnabled and "ESP: Bật" or "ESP: Tắt"
+    if toggles.espEnabled then
+        spawn(function()
+            while toggles.espEnabled do
+                for _, v in pairs(Workspace.Enemies:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") and not v:FindFirstChild("ESP") then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "ESP"
+                        billboard.Size = UDim2.new(0, 100, 0, 30)
+                        billboard.Adornee = v:FindFirstChild("HumanoidRootPart")
+                        billboard.AlwaysOnTop = true
+                        local text = Instance.new("TextLabel")
+                        text.Parent = billboard
+                        text.Size = UDim2.new(1, 0, 1, 0)
+                        text.BackgroundTransparency = 1
+                        text.Text = v.Name
+                        text.TextColor3 = Color3.fromRGB(255, 0, 0)
+                        billboard.Parent = v
+                    end
+                end
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if v.Name:find("Fruit") and not v:FindFirstChild("ESP") then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "ESP"
+                        billboard.Size = UDim2.new(0, 100, 0, 30)
+                        billboard.Adornee = v
+                        billboard.AlwaysOnTop = true
+                        local text = Instance.new("TextLabel")
+                        text.Parent = billboard
+                        text.Size = UDim2.new(1, 0, 1, 0)
+                        text.BackgroundTransparency = 1
+                        text.Text = "Trái: " .. v.Name
+                        text.TextColor3 = Color3.fromRGB(0, 255, 0)
+                        billboard.Parent = v
+                    end
+                end
+                wait(1)
+            end
+        end)
+    else
+        for _, v in pairs(Workspace.Enemies:GetChildren()) do
+            if v:FindFirstChild("ESP") then v.ESP:Destroy() end
+        end
+        for _, v in pairs(Workspace:GetChildren()) do
+            if v:FindFirstChild("ESP") then v.ESP:Destroy() end
+        end
+    end
+end)
+
+-- Tab Misc
+local miscTab = createTab("Misc")
+createButton("AutoFruit", miscTab, "Bật Auto Nhặt Trái", function()
+    toggles.autoFruit = not toggles.autoFruit
+    StatusLabel.Text = toggles.autoFruit and "Auto Nhặt Trái: Bật" or "Auto Nhặt Trái: Tắt"
+    if toggles.autoFruit then
+        spawn(function()
+            while toggles.autoFruit do
+                for _, v in pairs(Workspace:GetChildren()) do
+                    if v.Name:find("Fruit") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
+                        StatusLabel.Text = "Đã tìm thấy: " .. v.Name
+                        wait(0.5)
+                    end
+                end
+                wait(0.2)
+            end
+        end)
+    end
+end)
+
+createButton("AutoEvent", miscTab, "Bật Auto Sự Kiện", function()
+    toggles.autoEvent = not toggles.autoEvent
+    StatusLabel.Text = toggles.autoEvent and "Auto Sự Kiện: Bật" or "Auto Sự Kiện: Tắt"
+    if toggles.autoEvent then
+        spawn(function()
+            while toggles.autoEvent do
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, 100, 0)
+                for _, v in pairs(Workspace.SeaBeasts:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 10, -10)
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(0, 0))
+                    end
+                end
+                wait(2)
+            end
+        end)
+    end
+end)
+
+createButton("AutoStats", miscTab, "Bật Auto Stats", function()
+    toggles.autoStats = not toggles.autoStats
+    StatusLabel.Text = toggles.autoStats and "Auto Stats: Bật" or "Auto Stats: Tắt"
+    if toggles.autoStats then
+        spawn(function()
+            while toggles.autoStats do
+                local args = { [1] = "AddPoint", [2] = "Melee", [3] = 1 }
+                ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+                wait(1)
+            end
+        end)
+    end
+end)
+
+createButton("AutoAwaken", miscTab, "Bật Auto Awaken", function()
+    toggles.autoAwaken = not toggles.autoAwaken
+    StatusLabel.Text = toggles.autoAwaken and "Auto Awaken: Bật" or "Auto Awaken: Tắt"
+    if toggles.autoAwaken then
+        spawn(function()
+            while toggles.autoAwaken do
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-1600, 10, -5000)
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("Awakening", "Start")
+                wait(5)
+            end
+        end)
+    end
+end)
+
+-- Tab Teleport
+local teleportTab = createTab("Teleport")
+local yOffset = 0
+for location, cframe in pairs(teleportLocations) do
+    createButton(location, teleportTab, "TP: " .. location, function()
+        LocalPlayer.Character.HumanoidRootPart.CFrame = cframe
+        StatusLabel.Text = "Đã teleport đến " .. location
+    end)
+    yOffset = yOffset + 50
+end
+
+-- Phím tắt bật/tắt GUI (RightShift)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
